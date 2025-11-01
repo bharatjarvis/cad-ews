@@ -1,0 +1,12 @@
+
+customer_id,name,overdue_days,missed_emi_count,utilization_ratio,monthly_income,last_payment_date
+CUST001,Anil Sharma,0,0,0.45,50000,2025-10-01
+CUST002,Radha Patel,45,1,0.88,35000,2025-09-05
+CUST003,Vinod Rao,75,3,0.96,60000,2025-07-20
+CUST004,Sunita Iyer,10,0,0.65,45000,2025-10-28
+CUST005,Arjun Mehta,0,0,0.20,25000,2025-10-15
+CUST006,Meena Kaur,35,2,0.92,70000,2025-08-30
+CUST007,Rakesh Singh,0,0,0.50,80000,2025-10-10
+CUST008,Deepa Nair,150,5,0.99,90000,2024-12-01
+CUST009,Priyanka Joshi,5,0,0.60,30000,2025-10-25
+CUST010,Sameer Khan,31,2,0.91,40000,2025-09-15
