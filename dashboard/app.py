@@ -1,52 +1,83 @@
-
 import streamlit as st
 import pandas as pd
-import requests
+from pathlib import Path
+from backend.utils.credit_rules import detect_credit_stress
+from backend.utils.transaction_rules import detect_suspicious_transactions
 
-st.set_page_config(page_title='CAD-EWS Dashboard', layout='wide')
-st.title("🧭 CAD‑EWS — Credit & Deposit Early Warning System (MVP)")
+# ---------------------------
+# BASIC CONFIG
+# ---------------------------
+st.set_page_config(
+    page_title="CAD-EWS Dashboard",
+    page_icon="🧭",
+    layout="wide"
+)
 
-st.sidebar.header("Modules")
-module = st.sidebar.selectbox("Module", ["Overview", "Credit Alerts", "Transaction Alerts"])
+# ---------------------------
+# HEADER
+# ---------------------------
+st.title("🧭 Credit and Deposit Early Warning System (CAD-EWS)")
+st.markdown("An AI-assisted early warning system for **credit stress** and **suspicious transactions**.")
 
-API_BASE = st.sidebar.text_input("Backend API base URL", "http://localhost:8000")
+# ---------------------------
+# SIDEBAR: SETTINGS
+# ---------------------------
+st.sidebar.header("⚙️ Settings")
 
-if module == "Overview":
-    st.markdown("""
-    **Overview**
-    - This dashboard displays alerts detected by the CAD‑EWS backend.
-    - Use **Credit Alerts** for borrower stress signals.
-    - Use **Transaction Alerts** for suspicious transaction patterns.
-    """)
-    if st.button("Health check API"):
-        try:
-            r = requests.get(f"{API_BASE}/health", timeout=5)
-            st.success(f"Backend status: {r.json()}")
-        except Exception as e:
-            st.error(f"Could not reach backend: {e}")
-elif module == "Credit Alerts":
-    st.subheader("Borrower Stress Alerts")
-    try:
-        r = requests.get(f"{API_BASE}/credit-alerts", timeout=8)
-        data = r.json().get("alerts", [])
-        if data:
-            df = pd.DataFrame(data)
-            st.dataframe(df)
-            st.write(f"Total alerts: {len(data)}")
-        else:
-            st.info("No credit alerts found.")
-    except Exception as e:
-        st.error(f"Error fetching credit alerts: {e}")
-else:
-    st.subheader("Suspicious Transaction Alerts")
-    try:
-        r = requests.get(f"{API_BASE}/transaction-alerts", timeout=8)
-        data = r.json().get("alerts", [])
-        if data:
-            df = pd.DataFrame(data)
-            st.dataframe(df)
-            st.write(f"Total alerts: {len(data)}")
-        else:
-            st.info("No transaction alerts found.")
-    except Exception as e:
-        st.error(f"Error fetching transaction alerts: {e}")
+mode_toggle = st.sidebar.toggle("Enable Production Mode", value=False)
+mode = "Production" if mode_toggle else "Demo"
+
+# Mode badge on top-right
+badge_color = "🟢" if mode == "Demo" else "🔴"
+st.markdown(
+    f"""
+    <div style='text-align: right; font-size: 18px;'>
+        <b>Mode:</b> {badge_color} {mode}
+    </div>
+    """,
+    unsafe_allow_html=True
+)
+
+if mode == "Production":
+    st.warning("🚧 Production backend not ready yet. Currently running in Demo Mode.")
+    mode = "Demo"  # fallback for demo data usage
+
+# ---------------------------
+# DATA LOADING
+# ---------------------------
+DATA_DIR = Path(__file__).resolve().parent.parent / "data"
+
+@st.cache_data
+def load_local_data():
+    credit_df = pd.read_csv(DATA_DIR / "credit_data.csv")
+    txn_df = pd.read_csv(DATA_DIR / "transactions.csv")
+    return credit_df, txn_df
+
+credit_df, txn_df = load_local_data()
+
+# ---------------------------
+# RUN DETECTION LOGIC
+# ---------------------------
+credit_alerts = detect_credit_stress(credit_df)
+txn_alerts = detect_suspicious_transactions(txn_df)
+
+# ---------------------------
+# MAIN VIEW
+# ---------------------------
+tab1, tab2 = st.tabs(["📊 Credit Monitoring", "💸 Transaction Monitoring"])
+
+with tab1:
+    st.subheader("Borrower Stress Detection")
+    st.dataframe(pd.DataFrame(credit_alerts))
+    st.info(f"Running in {mode} Mode")
+
+with tab2:
+    st.subheader("Suspicious Transaction Detection")
+    st.dataframe(pd.DataFrame(txn_alerts))
+    st.info(f"Running in {mode} Mode")
+
+# ---------------------------
+# FOOTER
+# ---------------------------
+st.markdown("---")
+st.caption("© 2025 CAD-EWS | Credit & Deposit Early Warning System | Built with ❤️ using Streamlit")
