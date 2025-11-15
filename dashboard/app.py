@@ -4,7 +4,6 @@ sys.path.append(str(Path(__file__).resolve().parent.parent))
 
 import streamlit as st
 import pandas as pd
-from pathlib import Path
 from backend.utils.credit_rules import detect_credit_stress
 from backend.utils.transaction_rules import detect_suspicious_transactions
 
@@ -43,8 +42,16 @@ st.markdown(
 )
 
 if mode == "Production":
-    st.warning("🚧 Production backend not ready yet. Currently running in Demo Mode.")
-    mode = "Demo"  # fallback for demo data usage
+    st.warning("🚧 Production backend not ready yet. Running in Demo Mode.")
+    mode = "Demo"
+
+# ---------------------------
+# FILE UPLOAD SECTION
+# ---------------------------
+st.sidebar.subheader("📤 Upload Data Files")
+
+credit_file = st.sidebar.file_uploader("Upload Credit Data (CSV)", type=["csv"])
+txn_file = st.sidebar.file_uploader("Upload Transaction Data (CSV)", type=["csv"])
 
 # ---------------------------
 # DATA LOADING
@@ -52,32 +59,90 @@ if mode == "Production":
 DATA_DIR = Path(__file__).resolve().parent.parent / "data"
 
 @st.cache_data
-def load_local_data():
+def load_demo_data():
     credit_df = pd.read_csv(DATA_DIR / "credit_data.csv")
     txn_df = pd.read_csv(DATA_DIR / "transactions.csv")
     return credit_df, txn_df
-
-credit_df, txn_df = load_local_data()
-
-# ---------------------------
-# RUN DETECTION LOGIC
-# ---------------------------
-credit_alerts = detect_credit_stress(credit_df)
-txn_alerts = detect_suspicious_transactions(txn_df)
 
 # ---------------------------
 # MAIN VIEW
 # ---------------------------
 tab1, tab2 = st.tabs(["📊 Credit Monitoring", "💸 Transaction Monitoring"])
 
+# ==========================================================
+# CREDIT MONITORING TAB
+# ==========================================================
 with tab1:
     st.subheader("Borrower Stress Detection")
-    st.dataframe(pd.DataFrame(credit_alerts))
+
+    # Decide which data to use
+    if credit_file is not None:
+        try:
+            credit_df = pd.read_csv(credit_file)
+            st.success(f"Uploaded {len(credit_df)} credit records.")
+        except Exception as e:
+            st.error(f"❌ Error reading uploaded credit file: {e}")
+            st.stop()
+    else:
+        st.info("Using demo credit dataset (upload your own CSV to override).")
+        credit_df, _ = load_demo_data()
+
+    # Run detection
+    credit_alerts = detect_credit_stress(credit_df)
+
+    # Display data + alerts
+    st.write("### Sample Credit Data", credit_df.head())
+    alert_df = pd.DataFrame(credit_alerts)
+
+    if not alert_df.empty:
+        st.write("### 🚨 Detected Credit Alerts", alert_df)
+        st.download_button(
+            label="⬇️ Download Credit Alerts",
+            data=alert_df.to_csv(index=False).encode("utf-8"),
+            file_name="credit_alerts.csv",
+            mime="text/csv"
+        )
+    else:
+        st.info("No borrower stress detected.")
+
     st.info(f"Running in {mode} Mode")
 
+# ==========================================================
+# TRANSACTION MONITORING TAB
+# ==========================================================
 with tab2:
     st.subheader("Suspicious Transaction Detection")
-    st.dataframe(pd.DataFrame(txn_alerts))
+
+    # Decide data source
+    if txn_file is not None:
+        try:
+            txn_df = pd.read_csv(txn_file)
+            st.success(f"Uploaded {len(txn_df)} transaction records.")
+        except Exception as e:
+            st.error(f"❌ Error reading uploaded transaction file: {e}")
+            st.stop()
+    else:
+        st.info("Using demo transaction dataset (upload your own CSV to override).")
+        _, txn_df = load_demo_data()
+
+    # Run detection
+    txn_alerts = detect_suspicious_transactions(txn_df)
+
+    # Display data + alerts
+    st.write("### Sample Transaction Data", txn_df.head())
+    alert_df = pd.DataFrame(txn_alerts)
+
+    if not alert_df.empty:
+        st.write("### 🚨 Detected Suspicious Transactions", alert_df)
+        st.download_button(
+            label="⬇️ Download Transaction Alerts",
+            data=alert_df.to_csv(index=False).encode("utf-8"),
+            file_name="transaction_alerts.csv",
+            mime="text/csv"
+        )
+    else:
+        st.info("No suspicious transactions detected.")
+
     st.info(f"Running in {mode} Mode")
 
 # ---------------------------
